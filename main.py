@@ -3,20 +3,27 @@ import random
 import pygame
 
 from player import Player
-from enemy import Enemy
+from enemy import Enemy, Boss
 
 WIDTH, HEIGHT = 480, 640
 FPS = 60
 
 
 def spawn_wave(wave: int, enemies: pygame.sprite.Group, all_sprites: pygame.sprite.Group) -> None:
-    """Create a new wave of enemies."""
+    """Create a new wave of enemies or a boss every few waves."""
+    if wave and wave % 5 == 0:
+        boss = Boss(WIDTH // 2, -80, health=10 + wave * 2, speed=2 + wave // 5)
+        enemies.add(boss)
+        all_sprites.add(boss)
+        return
+
     count = 5 + wave * 2
     for _ in range(count):
         x = random.randint(0, WIDTH - 40)
         y = random.randint(-150, -40)
         speed = random.randint(2, 4) + wave
-        enemy = Enemy(x, y, speed)
+        enemy_type = random.choice(["straight", "zigzag"])
+        enemy = Enemy(x, y, speed, enemy_type)
         enemies.add(enemy)
         all_sprites.add(enemy)
 def choose_plane(screen: pygame.Surface) -> str:
@@ -42,6 +49,39 @@ def choose_plane(screen: pygame.Surface) -> str:
         for i, text in enumerate(options):
             img = font.render(text, True, (255, 255, 255))
             screen.blit(img, (20, 200 + i * 30))
+        pygame.display.flip()
+
+
+def choose_upgrade(screen: pygame.Surface, timeout: int = 3000) -> str:
+    """Present three upgrade options and return the chosen one.
+
+    If no choice is made within ``timeout`` milliseconds a random upgrade is
+    selected to keep automated tests progressing.
+    """
+    font = pygame.font.Font(None, 28)
+    options = [
+        "1: Extra Bullet",
+        "2: Speed Up",
+        "3: Shield",
+    ]
+    start = pygame.time.get_ticks()
+    while True:
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                return "none"
+            if event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_1:
+                    return "bullet"
+                if event.key == pygame.K_2:
+                    return "speed"
+                if event.key == pygame.K_3:
+                    return "shield"
+        if timeout and pygame.time.get_ticks() - start > timeout:
+            return random.choice(["bullet", "speed", "shield"])
+        screen.fill((0, 0, 0))
+        for i, text in enumerate(options):
+            img = font.render(text, True, (255, 255, 255))
+            screen.blit(img, (40, 200 + i * 30))
         pygame.display.flip()
 
 
@@ -93,15 +133,30 @@ def main(autoquit: float | None = None, plane: str | None = "A") -> int:
         bullets.update()
 
         # Collisions
-        hits = pygame.sprite.groupcollide(enemies, bullets, True, True)
-        if hits:
-            player.add_kill(len(hits))
+        hits = pygame.sprite.groupcollide(enemies, bullets, False, True)
+        for enemy, hit_list in hits.items():
+            for b in hit_list:
+                if enemy.hit(getattr(b, "damage", 1)):
+                    player.add_kill(1)
+                    break
         if not enemies:
             wave += 1
+            upgrade = choose_upgrade(screen)
+            if upgrade == "bullet":
+                player.bullet_bonus += 1
+            elif upgrade == "speed":
+                player.speed += 1
+            elif upgrade == "shield":
+                player.shield += 1
             spawn_wave(wave, enemies, all_sprites)
 
         if pygame.sprite.spritecollide(player, enemies, True):
-            running = False
+            if player.shield > 0:
+                player.shield -= 1
+            else:
+                player.health -= 1
+                if player.health <= 0:
+                    running = False
 
         screen.fill((0, 0, 0))
         all_sprites.draw(screen)

@@ -21,6 +21,11 @@ class Player(pygame.sprite.Sprite):
         self.kills = 0
         self.special_ready = False
         self.special_threshold = {"A": 5, "B": 7, "C": 10}[plane_type]
+        self.health = 3
+        # Upgrade related stats
+        self.bullet_speed = 6 if plane_type == "C" else 8
+        self.bullet_bonus = 0
+        self.shield = 0
 
     def update(self, keys: pygame.key.ScancodeWrapper) -> None:
         if keys[pygame.K_LEFT]:
@@ -48,20 +53,25 @@ class Player(pygame.sprite.Sprite):
         """Return a list of bullets for the plane's primary attack."""
         bullets: list[Bullet] = []
         if self.plane_type == "A":
-            bullets.append(Bullet(self.rect.centerx, self.rect.top))
+            bullets.append(Bullet(self.rect.centerx, self.rect.top, speed=self.bullet_speed))
         elif self.plane_type == "B":
-            bullets.append(Bullet(self.rect.centerx - 15, self.rect.top))
-            bullets.append(Bullet(self.rect.centerx + 15, self.rect.top))
+            bullets.append(Bullet(self.rect.centerx - 15, self.rect.top, speed=self.bullet_speed))
+            bullets.append(Bullet(self.rect.centerx + 15, self.rect.top, speed=self.bullet_speed))
         elif self.plane_type == "C":
             bullets.append(
                 Bullet(
                     self.rect.centerx,
                     self.rect.top,
-                    speed=6,
+                    speed=self.bullet_speed,
                     size=(8, 15),
                     color=(255, 165, 0),
                 )
             )
+        # Extra bullets from upgrades
+        for i in range(1, self.bullet_bonus + 1):
+            offset = 15 * i
+            bullets.append(Bullet(self.rect.centerx - offset, self.rect.top, speed=self.bullet_speed))
+            bullets.append(Bullet(self.rect.centerx + offset, self.rect.top, speed=self.bullet_speed))
         return bullets
 
     def special(self) -> list[Bullet]:

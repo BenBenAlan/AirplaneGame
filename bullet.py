@@ -27,6 +27,7 @@ class Bullet(pygame.sprite.Sprite):
         dy: float = -1,
         color: tuple[int, int, int] = (255, 255, 0),
         size: tuple[int, int] = (5, 10),
+        damage: int = 1,
     ) -> None:
         super().__init__()
         self.image = pygame.Surface(size)
@@ -35,6 +36,7 @@ class Bullet(pygame.sprite.Sprite):
         self.speed = speed
         self.dx = dx
         self.dy = dy
+        self.damage = damage
 
     def update(self) -> None:
         self.rect.x += self.dx * self.speed
